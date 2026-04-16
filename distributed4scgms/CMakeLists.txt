@@ -23,3 +23,6 @@ CONFIGURE_FILTER_OUTPUT(${PROJ})
 
 # Call CMake file in the UDP directory
 add_subdirectory(./src/udp)
+
+# Add UDA
+add_subdirectory(./src/uda)

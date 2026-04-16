@@ -90,7 +90,7 @@ struct TSolver_Info
 const std::array<TSolver_Info, 1> solvers = {
     TSolver_Info{
         scgms_distributed_solver::distributed_solver_generic,
-        Solve_Distributed<scgms_distributed_solver::CDistributed_Solver> // TODO???
+        Solve_Distributed<scgms_distributed_solver::CDistributed_Solver>
     }
 };
 
