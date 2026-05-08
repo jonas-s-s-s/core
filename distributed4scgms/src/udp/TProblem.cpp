@@ -48,7 +48,6 @@ pagmo::vector_double TProblem::fitness(const pagmo::vector_double& x) const
     // Fitness_Wrapper is declared in TProblemObjective.h, this replaces the original mSetup.objective call, mUdpData.get() replaces mObjective.data
     Fitness_Wrapper(mUdpData.get(), 1, solution.data(), result.data());
 
-    // TODO: Does this really work? Why is remapper not used here?
     result.resize(mParams.objectives_count);
     return result;
 }

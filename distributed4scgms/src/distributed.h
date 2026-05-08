@@ -55,6 +55,8 @@
 #include "pagmo/algorithms/de.hpp"
 #include "pagmo/algorithms/gaco.hpp"
 #include "scgms/iface/DistributedSolverIface.h"
+#include "mo_benchmark.h"
+#include "so_benchmark.h"
 
 namespace scgms_distributed_solver
 {
@@ -79,15 +81,11 @@ namespace scgms_distributed_solver
 
         bool Solve(solver::TSolver_Progress& progress)
         {
-            // TODO: Maybe wrap in try catch - setting succeeded? Or no - factory.cpp has try catch block
-
-            // TODO: Silence logger? Add logger configuration functions into the lib?
-            AixLog::Log::init<AixLog::SinkCout>(AixLog::Severity::trace);
-
             // 1) Initialize key variables
             //####################################################
             const size_t popSize = mSetup.population_size;
             const size_t generationCount = mSetup.max_generations;
+            const size_t numOfObjectives = mSetup.objectives_count;
             const std::string libName = mSolverData->solver_lib_name;
             const std::string controllerAddress = mSolverData->controller_address;
             const size_t expectedWorkerCount = mSolverData->expected_worker_count;
@@ -98,19 +96,28 @@ namespace scgms_distributed_solver
 
             // 2) Construct a pagmo UDP using our TProblem wrapper
             //####################################################
-            // TODO: Set up UDP registry?
+            // Maybe set up UDP registry?
             TUdpParams udpParams = {originalData, ExtractSerializable(mSetup)};
             udp_dll_wrapper udp{libName, udpParams};
             const pagmo::problem prob{udp};
 
-            // 3) Construct a pagmo Algorithm
+            // 3) Construct our Algorithms (MO or SO
             //####################################################
-            pagmo::algorithm algo{pagmo::de(generationCount)}; // TODO: Different algorithms for single-objective / multi-objective
-            algo.set_verbosity(0u);
+            std::vector<pagmo::algorithm> algos{};
+            if (numOfObjectives == 1)
+            {
+                algos = construct_so_algorithms(generationCount);
+            } else
+            {
+                algos = construct_mo_algorithms(generationCount);
+            }
 
             // 4) Set up distributed solver + hints
             //####################################################
             distributed_solver distSolver{controllerAddress, expectedWorkerCount};
+
+            // Enable logging
+            distSolver.enable_logging();
 
             std::vector<pagmo::vector_double> hints{};
             if (mSetup.hint_count > 0)
@@ -124,13 +131,12 @@ namespace scgms_distributed_solver
 
             // 5) Run the distributed evolution
             //####################################################
-            distSolver.evolve(prob, {algo}, popSize); // TODO: Maybe set cycleCount?
+            distSolver.evolve(prob, algos, popSize); // Maybe set cycleCount?
             // Blocking call
             const auto& bestIndividual = distSolver.wait_until_completion();
 
             // 6) Set if evolution was successful
             //####################################################
-            // TODO: Does this have any effect? wait_check() resets evolve_status and maybe throws if error?
             succeeded = distSolver.get_status() == pagmo::evolve_status::idle;
 
             // 7) Write back result and return
